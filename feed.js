@@ -27,12 +27,11 @@ function startProcess() {
       }, 0);
     }
 
-    if(config.exchanges.indexOf('poloniex') >= 0) {
-      loadPricePoloniex(function (price) {
+    if(config.exchanges.indexOf('huobi') >= 0) {
+      loadPriceHuobi(function (price) {
         prices.push(price);
       }, 0);
     }
-
     // Publish the average of all markets that were loaded
     setTimeout(function() { publishFeed(prices.reduce((t, v) => t + v, 0) / prices.length, 0); }, 30 * 1000);
   } else {
@@ -140,6 +139,26 @@ function loadPricePoloniex(callback, retries) {
       if(retries < 2)
         setTimeout(function () { loadPricePoloniex(callback, retries + 1); }, 10 * 1000);
     }
+  });
+}
+
+function loadPriceHuobi(callback, retries) {
+  // Load STEEM price in BTC from bittrex and convert that to USD using BTC price in coinmarketcap
+  request.get('https://api.huobi.pro/market/trade?symbol=btcusdt', function (e, r, data) {
+    request.get('https://api.huobi.pro/market/trade?symbol=steemusdt', function (e, r, btc_data) {
+      try {
+        steem_price = parseFloat(JSON.parse(data).price) * parseFloat(JSON.parse(btc_data).price);
+        log('Loaded STEEM Price from Huobi: ' + steem_price);
+
+        if (callback)
+          callback(steem_price);
+      } catch (err) {
+        log('Error loading STEEM price from Huobi: ' + err);
+
+        if(retries < 2)
+          setTimeout(function () { loadPriceHuobi(callback, retries + 1); }, 10 * 1000);
+      }
+    });
   });
 }
 
